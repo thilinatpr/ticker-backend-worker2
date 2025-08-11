@@ -3,18 +3,27 @@ main = "src/index.js"
 compatibility_date = "2024-08-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Deployment settings for consistency
+minify = true
+send_metrics = true
+logpush = false
+
+# Observability settings for better logging (wrangler v3.88.0+)
+[observability.logs]
+enabled = true
+
 # Default environment variables
 [vars]
 TICKER_API_BASE_URL = "https://ticker-backend-fw3jr13tb-thilinas-projects-f6f25033.vercel.app"
 TICKER_API_KEY = "tk_demo_key_12345"
 
-# wrangler.toml (wrangler v3.88.0^)
-[observability.logs]
-enabled = true
+# Limits and resource constraints
+[limits]
+cpu_ms = 50
 
-# Cron triggers (temporarily disabled - add manually in dashboard)
-# [[triggers.crons]]
-# cron = "0 9 * * *"
+# Cron triggers - Enable for automatic deployment
+[[triggers.crons]]
+cron = "0 9 * * *"  # Daily at 9:00 AM UTC (currently set to 1-minute for testing)
 
 # Production environment (optional override)
 [env.production]
