@@ -1,0 +1,13 @@
+name = "ticker-backend-worker"
+main = "src/index.js"
+compatibility_date = "2024-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Environment variables
+[vars]
+TICKER_API_BASE_URL = "https://ticker-backend-fw3jr13tb-thilinas-projects-f6f25033.vercel.app"
+TICKER_API_KEY = "tk_demo_key_12345"
+
+# Cron triggers
+[[triggers.crons]]
+cron = "0 9 * * *"  # Daily at 9:00 AM UTC

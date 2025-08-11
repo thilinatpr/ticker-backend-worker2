@@ -1,0 +1,25 @@
+name = "ticker-backend-worker"
+main = "src/index.js"
+compatibility_date = "2024-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Environment variables (replace with your values)
+[vars]
+TICKER_API_BASE_URL = "your-api-base-url"
+TICKER_API_KEY = "your-api-key"
+
+# Cron triggers
+[[triggers.crons]]
+cron = "0 9 * * *"  # Daily at 9:00 AM UTC
+
+# Development environment (optional)
+[env.development]
+[env.development.vars]
+TICKER_API_BASE_URL = "your-api-base-url"
+TICKER_API_KEY = "your-api-key"
+
+# Production environment (optional)
+[env.production]
+[env.production.vars]
+TICKER_API_BASE_URL = "your-api-base-url"
+TICKER_API_KEY = "your-api-key"

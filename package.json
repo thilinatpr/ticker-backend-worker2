@@ -1,0 +1,41 @@
+{
+  "name": "ticker-backend-worker2",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Cloudflare Worker for reliable ticker backend cron job scheduling and processing",
+  "main": "src/index.js",
+  "keywords": [
+    "cloudflare",
+    "worker",
+    "cron",
+    "stocks",
+    "dividends",
+    "scheduler",
+    "api"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thilinatpr/ticker-backend-cloudflare-worker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thilinatpr/ticker-backend-cloudflare-worker/issues"
+  },
+  "homepage": "https://github.com/thilinatpr/ticker-backend-cloudflare-worker#readme",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:production": "wrangler deploy --env production",
+    "tail": "wrangler tail ticker-backend-worker",
+    "tail:pretty": "wrangler tail ticker-backend-worker --format=pretty",
+    "whoami": "wrangler whoami",
+    "test": "echo 'No tests specified yet'"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
