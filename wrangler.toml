@@ -8,6 +8,10 @@ compatibility_flags = ["nodejs_compat"]
 TICKER_API_BASE_URL = "https://ticker-backend-fw3jr13tb-thilinas-projects-f6f25033.vercel.app"
 TICKER_API_KEY = "tk_demo_key_12345"
 
+# wrangler.toml (wrangler v3.88.0^)
+[observability.logs]
+enabled = true
+
 # Cron triggers (temporarily disabled - add manually in dashboard)
 # [[triggers.crons]]
 # cron = "0 9 * * *"
