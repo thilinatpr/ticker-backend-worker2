@@ -24,28 +24,58 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check Authentication
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "❌ CLOUDFLARE_API_TOKEN secret is not set in GitHub repository"
+            echo "Please add this secret in GitHub repository settings"
+            exit 1
+          fi
+          echo "✅ API Token found"
+          npx wrangler whoami
+
       - name: Create Cloudflare Queue (if needed)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          # Try to create the queue, ignore error if it already exists
+          echo "Creating queue with paid plan..."
           npx wrangler queues create ticker-dividend-queue || echo "Queue might already exist, continuing..."
 
       - name: Deploy Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: npm run deploy
+        run: |
+          echo "Deploying worker..."
+          npx wrangler deploy --env="" --compatibility-date=2024-08-01
 
-      - name: Verify Queue Integration
+      - name: Get Worker URL
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          echo "Verifying queue integration..."
-          npx wrangler queues list | grep ticker-dividend-queue || echo "Queue verification failed"
+          echo "Getting deployed worker information..."
+          npx wrangler list || echo "Could not list workers"
           
       - name: Test Worker Health
         run: |
-          # Wait a few seconds for deployment to complete
-          sleep 5
-          # Test worker health endpoint
-          curl -f https://ticker-backend-worker2-deployed.thilinas-projects-f6f25033.workers.dev/health || echo "Health check failed"
+          echo "Waiting for deployment to propagate..."
+          sleep 10
+          
+          # Try multiple possible worker URLs
+          URLS=(
+            "https://ticker-backend-worker2.thilinatpr.workers.dev"
+            "https://ticker-backend-worker2-deployed.thilinatpr.workers.dev"
+            "https://ticker-backend-worker2.thilinas-projects-f6f25033.workers.dev"
+          )
+          
+          for url in "${URLS[@]}"; do
+            echo "Testing: $url/health"
+            if curl -f -m 10 "$url/health"; then
+              echo "✅ Worker is healthy at: $url"
+              echo "WORKER_URL=$url" >> $GITHUB_ENV
+              break
+            else
+              echo "❌ Health check failed for: $url"
+            fi
+          done
