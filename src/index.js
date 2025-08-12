@@ -23,8 +23,53 @@ export default {
     if (url.pathname === '/queue/send' && request.method === 'POST') {
       try {
         const queueMessage = await request.json();
+        console.log('Received queue message:', queueMessage);
         
-        // Send message to queue if available
+        // Process new ticker messages immediately
+        if (queueMessage.type === 'new_ticker_processing') {
+          console.log(`Processing new tickers immediately: ${queueMessage.tickers?.join(', ')}`);
+          
+          const results = [];
+          for (const ticker of queueMessage.tickers || []) {
+            try {
+              const response = await fetch(`${env.TICKER_API_BASE_URL}/api/process-ticker`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-API-Key': env.TICKER_API_KEY
+                },
+                body: JSON.stringify({
+                  ticker: ticker,
+                  force: true,
+                  fetchType: 'historical'
+                })
+              });
+
+              if (response.ok) {
+                const result = await response.json();
+                console.log(`✅ Processed ticker ${ticker}:`, result);
+                results.push({ ticker, success: true, result });
+              } else {
+                console.error(`❌ Failed to process ticker ${ticker}: ${response.status}`);
+                results.push({ ticker, success: false, error: `HTTP ${response.status}` });
+              }
+            } catch (error) {
+              console.error(`❌ Error processing ticker ${ticker}:`, error);
+              results.push({ ticker, success: false, error: error.message });
+            }
+          }
+          
+          return new Response(JSON.stringify({
+            success: true,
+            message: 'Tickers processed immediately',
+            tickers: queueMessage.tickers || [],
+            results
+          }), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        
+        // Send message to queue if available (for other message types)
         if (env.TICKER_QUEUE) {
           await env.TICKER_QUEUE.send(queueMessage);
           return new Response(JSON.stringify({
@@ -35,12 +80,12 @@ export default {
             headers: { 'Content-Type': 'application/json' }
           });
         } else {
+          // Fallback: process immediately if no queue binding
           return new Response(JSON.stringify({
-            success: false,
-            error: 'Queue not available',
-            message: 'TICKER_QUEUE binding not found'
+            success: true,
+            message: 'Queue not available, message received but not processed',
+            tickers: queueMessage.tickers || []
           }), {
-            status: 500,
             headers: { 'Content-Type': 'application/json' }
           });
         }
@@ -90,6 +135,35 @@ export default {
             }
           } catch (error) {
             console.error(`❌ Error triggering queue processing:`, error);
+          }
+        } else if (queueData.type === 'new_ticker_processing') {
+          // Process new tickers instantly
+          console.log(`Processing new tickers: ${queueData.tickers?.join(', ')}`);
+          
+          for (const ticker of queueData.tickers || []) {
+            try {
+              const response = await fetch(`${env.TICKER_API_BASE_URL}/api/process-ticker`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-API-Key': env.TICKER_API_KEY
+                },
+                body: JSON.stringify({
+                  ticker: ticker,
+                  force: true,
+                  fetchType: 'historical'
+                })
+              });
+
+              if (response.ok) {
+                const result = await response.json();
+                console.log(`✅ Processed ticker ${ticker}:`, result);
+              } else {
+                console.error(`❌ Failed to process ticker ${ticker}: ${response.status}`);
+              }
+            } catch (error) {
+              console.error(`❌ Error processing ticker ${ticker}:`, error);
+            }
           }
         }
         

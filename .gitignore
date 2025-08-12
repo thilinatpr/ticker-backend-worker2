@@ -107,3 +107,4 @@ package-lock.json.backup
 yarn.lock.backup
 .pnpm-store/
 .yarn/
+.vercel
