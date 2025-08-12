@@ -1,5 +1,5 @@
 name = "ticker-backend-worker2"
-main = "src/simple-index.js"
+main = "src/index.js"
 compatibility_date = "2024-08-01"
 compatibility_flags = ["nodejs_compat"]
 
@@ -24,8 +24,8 @@ max_batch_timeout = 5
 max_retries = 3
 
 # Cron triggers for bulk dividend updates (twice daily)
-[[triggers.crons]]
-cron = "0 9,21 * * *"
+[triggers]
+crons = ["0 9,21 * * *"]
 
 # Production environment (optional override)
 [env.production]
