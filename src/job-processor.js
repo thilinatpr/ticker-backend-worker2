@@ -40,6 +40,37 @@ export class JobProcessor {
     }
   }
 
+  async processBulkDividendUpdate() {
+    if (!this.apiBaseUrl || !this.apiKey) {
+      throw new Error('Missing required environment variables: TICKER_API_BASE_URL, TICKER_API_KEY');
+    }
+
+    console.log('Starting bulk dividend update...');
+    
+    try {
+      const response = await fetch(`${this.apiBaseUrl}/api/bulk-dividend-update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': this.apiKey,
+          'User-Agent': 'CloudflareWorker/1.0'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Bulk dividend update failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Bulk dividend update completed:', result);
+      return result;
+      
+    } catch (error) {
+      console.error('Bulk dividend update error:', error);
+      throw error;
+    }
+  }
+
   async getJobStats() {
     try {
       const response = await fetch(`${this.apiBaseUrl}/api/jobs?limit=10`, {

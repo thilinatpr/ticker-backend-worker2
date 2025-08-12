@@ -12,9 +12,24 @@ TICKER_API_KEY = "tk_demo_key_12345"
 [observability.logs]
 enabled = true
 
-# Cron triggers (temporarily disabled - add manually in dashboard)
-# [[triggers.crons]]
-# cron = "0 9 * * *"
+# Cloudflare Queue for instant new ticker processing
+[[queues.producers]]
+binding = "TICKER_QUEUE"
+queue = "ticker-dividend-queue"
+
+[[queues.consumers]]
+queue = "ticker-dividend-queue"
+max_batch_size = 5
+max_wait_time = "5 seconds"
+max_retries = 3
+
+# Cron triggers for bulk dividend updates (twice daily)
+[[triggers.crons]]
+cron = "0 9,21 * * *"
+
+# Cron trigger for individual ticker queue processing (once daily)
+[[triggers.crons]]
+cron = "0 9 * * *"
 
 # Production environment (optional override)
 [env.production]
