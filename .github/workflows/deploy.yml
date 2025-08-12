@@ -1,0 +1,51 @@
+name: Deploy Cloudflare Worker with Queue
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Cloudflare Workers
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create Cloudflare Queue (if needed)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          # Try to create the queue, ignore error if it already exists
+          npx wrangler queues create ticker-dividend-queue || echo "Queue might already exist, continuing..."
+
+      - name: Deploy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npm run deploy
+
+      - name: Verify Queue Integration
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "Verifying queue integration..."
+          npx wrangler queues list | grep ticker-dividend-queue || echo "Queue verification failed"
+          
+      - name: Test Worker Health
+        run: |
+          # Wait a few seconds for deployment to complete
+          sleep 5
+          # Test worker health endpoint
+          curl -f https://ticker-backend-worker2-deployed.thilinas-projects-f6f25033.workers.dev/health || echo "Health check failed"

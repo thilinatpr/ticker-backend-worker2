@@ -20,7 +20,7 @@ queue = "ticker-dividend-queue"
 [[queues.consumers]]
 queue = "ticker-dividend-queue"
 max_batch_size = 5
-max_wait_time = "5 seconds"
+max_wait_time_ms = 5000
 max_retries = 3
 
 # Cron triggers for bulk dividend updates (twice daily)

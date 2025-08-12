@@ -25,8 +25,9 @@
   "homepage": "https://github.com/thilinatpr/ticker-backend-cloudflare-worker#readme",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "deploy:production": "wrangler deploy --env production",
+    "deploy": "npm run setup-queue && wrangler deploy",
+    "deploy:production": "npm run setup-queue && wrangler deploy --env production",
+    "setup-queue": "wrangler queues create ticker-dividend-queue || echo 'Queue already exists or creation failed - continuing...'",
     "tail": "wrangler tail ticker-backend-worker",
     "tail:pretty": "wrangler tail ticker-backend-worker --format=pretty",
     "whoami": "wrangler whoami",
