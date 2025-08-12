@@ -27,10 +27,6 @@ max_retries = 3
 [[triggers.crons]]
 cron = "0 9,21 * * *"
 
-# Cron trigger for individual ticker queue processing (once daily)
-[[triggers.crons]]
-cron = "0 9 * * *"
-
 # Production environment (optional override)
 [env.production]
 [env.production.vars]
