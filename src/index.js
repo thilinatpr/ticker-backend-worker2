@@ -71,31 +71,25 @@ export default {
         const queueData = message.body;
         console.log('Queue message:', queueData);
         
-        if (queueData.type === 'new_ticker_processing') {
-          // Process new ticker - call main API
-          for (const ticker of queueData.tickers) {
-            try {
-              const response = await fetch(`${env.TICKER_API_BASE_URL}/api/process-ticker`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'X-API-Key': env.TICKER_API_KEY
-                },
-                body: JSON.stringify({
-                  ticker: ticker,
-                  fetchType: 'historical',
-                  force: queueData.force || false
-                })
-              });
-
-              if (response.ok) {
-                console.log(`✅ Processed ${ticker} successfully`);
-              } else {
-                console.error(`❌ Failed to process ${ticker}: ${response.status}`);
+        if (queueData.type === 'process_queue') {
+          // Trigger main API queue processing
+          try {
+            const response = await fetch(`${env.TICKER_API_BASE_URL}/api/process-queue`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': env.TICKER_API_KEY
               }
-            } catch (error) {
-              console.error(`❌ Error processing ${ticker}:`, error);
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              console.log(`✅ Queue processing completed:`, result);
+            } else {
+              console.error(`❌ Queue processing failed: ${response.status}`);
             }
+          } catch (error) {
+            console.error(`❌ Error triggering queue processing:`, error);
           }
         }
         
@@ -117,7 +111,22 @@ export default {
       if (healthResponse.ok) {
         console.log('✅ Main API is healthy');
         
-        // Trigger bulk dividend update
+        // Trigger queue processing
+        const queueResponse = await fetch(`${env.TICKER_API_BASE_URL}/api/process-queue`, {
+          method: 'POST',
+          headers: {
+            'X-API-Key': env.TICKER_API_KEY
+          }
+        });
+        
+        if (queueResponse.ok) {
+          const result = await queueResponse.json();
+          console.log('✅ Queue processing completed:', result);
+        } else {
+          console.error('❌ Queue processing failed:', queueResponse.status);
+        }
+
+        // Also trigger bulk dividend update for daily maintenance  
         const bulkResponse = await fetch(`${env.TICKER_API_BASE_URL}/api/bulk-dividend-update`, {
           method: 'POST',
           headers: {
@@ -126,8 +135,8 @@ export default {
         });
         
         if (bulkResponse.ok) {
-          const result = await bulkResponse.json();
-          console.log('✅ Bulk update completed:', result);
+          const bulkResult = await bulkResponse.json();
+          console.log('✅ Bulk update completed:', bulkResult);
         } else {
           console.error('❌ Bulk update failed:', bulkResponse.status);
         }
