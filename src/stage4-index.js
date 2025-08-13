@@ -626,9 +626,10 @@ export default {
           status: 'ok',
           timestamp: new Date().toISOString(),
           service: 'ticker-backend-cf-native',
-          stage: 'Stage 4 - Full CF-Native System with Auth',
+          stage: 'Stage 4 - Full CF-Native System with Subscriptions',
           complexity: 'eliminated',
           authentication: 'enabled',
+          subscriptions: 'enabled',
           environment: {
             hasSupabaseUrl: !!env.SUPABASE_URL,
             hasSupabaseKey: !!env.SUPABASE_ANON_KEY,
