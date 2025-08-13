@@ -101,6 +101,147 @@ export default {
       }
     }
 
+    // Dividends all endpoint - fetch all dividend data
+    if (url.pathname === '/dividends/all' && request.method === 'GET') {
+      try {
+        // Simple authentication check
+        const apiKey = request.headers.get('X-API-Key');
+        if (!apiKey) {
+          return new Response(JSON.stringify({
+            error: 'Missing API key',
+            message: 'X-API-Key header is required'
+          }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Extract query parameters
+        const searchParams = url.searchParams;
+        const startDate = searchParams.get('startDate');
+        const endDate = searchParams.get('endDate');
+        const format = searchParams.get('format');
+        const limit = searchParams.get('limit');
+        const offset = searchParams.get('offset');
+
+        // Build query parameters for the main API
+        const queryParams = new URLSearchParams();
+        if (startDate) queryParams.set('startDate', startDate);
+        if (endDate) queryParams.set('endDate', endDate);
+        if (format) queryParams.set('format', format);
+        if (limit) queryParams.set('limit', limit);
+        if (offset) queryParams.set('offset', offset);
+
+        // Call the main API dividends/all endpoint
+        const response = await fetch(`${env.TICKER_API_BASE_URL}/api/dividends/all?${queryParams.toString()}`, {
+          method: 'GET',
+          headers: {
+            'X-API-Key': env.TICKER_API_KEY,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const contentType = response.headers.get('content-type');
+          
+          // Handle CSV response
+          if (contentType && contentType.includes('text/csv')) {
+            const csvData = await response.text();
+            return new Response(csvData, {
+              status: 200,
+              headers: {
+                'Content-Type': 'text/csv',
+                'Content-Disposition': response.headers.get('Content-Disposition') || 'attachment; filename="all_dividends.csv"'
+              }
+            });
+          }
+          
+          // Handle JSON response
+          const data = await response.json();
+          return new Response(JSON.stringify(data), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } else {
+          const errorText = await response.text();
+          return new Response(JSON.stringify({
+            error: 'Failed to fetch dividend data',
+            status: response.status,
+            message: errorText
+          }), {
+            status: response.status,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      } catch (error) {
+        return new Response(JSON.stringify({
+          error: 'Internal server error',
+          message: error.message
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Update tickers endpoint - submit tickers for processing
+    if (url.pathname === '/update-tickers' && request.method === 'POST') {
+      try {
+        const requestBody = await request.json();
+        const { tickers, priority = 1, force = false } = requestBody;
+
+        if (!tickers || !Array.isArray(tickers)) {
+          return new Response(JSON.stringify({
+            error: 'Invalid request',
+            message: 'tickers array is required'
+          }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Call the main API update-tickers endpoint
+        const response = await fetch(`${env.TICKER_API_BASE_URL}/api/update-tickers`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': env.TICKER_API_KEY
+          },
+          body: JSON.stringify({
+            tickers,
+            priority,
+            force
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          return new Response(JSON.stringify(data), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } else {
+          const errorText = await response.text();
+          return new Response(JSON.stringify({
+            error: 'Failed to submit tickers for update',
+            status: response.status,
+            message: errorText
+          }), {
+            status: response.status,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      } catch (error) {
+        return new Response(JSON.stringify({
+          error: 'Internal server error',
+          message: error.message
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // Default response
     return new Response('Ticker Backend Worker (Simple) - Use /health for status', {
       status: 200,
