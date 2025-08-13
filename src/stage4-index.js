@@ -321,6 +321,129 @@ class CFNativePolygonManager {
   }
 }
 
+// User subscription management
+class CFNativeSubscriptionManager {
+  constructor(env) {
+    this.supabaseUrl = env.SUPABASE_URL;
+    this.supabaseKey = env.SUPABASE_ANON_KEY;
+  }
+
+  async subscribeToTicker(apiKey, ticker, priority = 1) {
+    const response = await fetch(`${this.supabaseUrl}/rpc/subscribe_to_ticker`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.supabaseKey}`,
+        'apikey': this.supabaseKey,
+      },
+      body: JSON.stringify({
+        p_api_key: apiKey,
+        p_ticker: ticker.toUpperCase(),
+        p_priority: priority
+      })
+    });
+
+    if (response.ok) {
+      return await response.json();
+    }
+    throw new Error(`Failed to subscribe: ${response.status}`);
+  }
+
+  async unsubscribeFromTicker(apiKey, ticker) {
+    const response = await fetch(`${this.supabaseUrl}/rpc/unsubscribe_from_ticker`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.supabaseKey}`,
+        'apikey': this.supabaseKey,
+      },
+      body: JSON.stringify({
+        p_api_key: apiKey,
+        p_ticker: ticker.toUpperCase()
+      })
+    });
+
+    if (response.ok) {
+      return await response.json();
+    }
+    throw new Error(`Failed to unsubscribe: ${response.status}`);
+  }
+
+  async getUserSubscriptions(apiKey) {
+    const response = await fetch(`${this.supabaseUrl}/rpc/get_user_subscriptions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.supabaseKey}`,
+        'apikey': this.supabaseKey,
+      },
+      body: JSON.stringify({
+        p_api_key: apiKey
+      })
+    });
+
+    if (response.ok) {
+      return await response.json();
+    }
+    throw new Error(`Failed to get subscriptions: ${response.status}`);
+  }
+
+  async getUserDividends(apiKey, startDate = null, endDate = null, limit = null, offset = null) {
+    let url = `${this.supabaseUrl}/rest/v1/user_dividends_view?api_key=eq.${apiKey}&order=ex_dividend_date.desc`;
+    
+    if (startDate) {
+      url += `&ex_dividend_date=gte.${startDate}`;
+    }
+    if (endDate) {
+      url += `&ex_dividend_date=lte.${endDate}`;
+    }
+    if (limit) {
+      url += `&limit=${limit}`;
+    }
+    if (offset) {
+      url += `&offset=${offset}`;
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${this.supabaseKey}`,
+        'apikey': this.supabaseKey,
+      }
+    });
+
+    if (response.ok) {
+      return await response.json();
+    }
+    return [];
+  }
+
+  async bulkSubscribe(apiKey, tickers, priority = 1) {
+    const results = [];
+    for (const ticker of tickers) {
+      try {
+        const result = await this.subscribeToTicker(apiKey, ticker, priority);
+        results.push({ ticker: ticker.toUpperCase(), success: true, result });
+      } catch (error) {
+        results.push({ ticker: ticker.toUpperCase(), success: false, error: error.message });
+      }
+    }
+    return results;
+  }
+
+  async bulkUnsubscribe(apiKey, tickers) {
+    const results = [];
+    for (const ticker of tickers) {
+      try {
+        const result = await this.unsubscribeFromTicker(apiKey, ticker);
+        results.push({ ticker: ticker.toUpperCase(), success: true, result });
+      } catch (error) {
+        results.push({ ticker: ticker.toUpperCase(), success: false, error: error.message });
+      }
+    }
+    return results;
+  }
+}
+
 // Complete CF-native processor
 class CFNativeProcessor {
   constructor(env) {
@@ -463,6 +586,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const processor = new CFNativeProcessor(env);
+    const subscriptions = new CFNativeSubscriptionManager(env);
     const auth = new CFNativeAuth(env);
     
     // Authentication check for all endpoints except health and OPTIONS
@@ -590,15 +714,178 @@ export default {
         return new Response(JSON.stringify(result), { headers: corsHeaders });
       }
 
+      // User subscription management endpoints
+      
+      // Get user's subscriptions
+      if (url.pathname === '/subscriptions' && request.method === 'GET') {
+        try {
+          const result = await subscriptions.getUserSubscriptions(authResult.apiKey);
+          return new Response(JSON.stringify({
+            success: true,
+            subscriptions: result,
+            total: result.length
+          }), { headers: corsHeaders });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            error: 'Failed to get subscriptions',
+            message: error.message
+          }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // Subscribe to ticker
+      if (url.pathname === '/subscriptions' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const { ticker, priority = 1 } = body;
+
+          if (!ticker) {
+            return new Response(JSON.stringify({
+              error: 'Invalid request: ticker is required'
+            }), { status: 400, headers: corsHeaders });
+          }
+
+          const result = await subscriptions.subscribeToTicker(authResult.apiKey, ticker, priority);
+          return new Response(JSON.stringify(result), { headers: corsHeaders });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            error: 'Failed to subscribe',
+            message: error.message
+          }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // Unsubscribe from ticker
+      if (url.pathname === '/subscriptions' && request.method === 'DELETE') {
+        try {
+          const body = await request.json();
+          const { ticker } = body;
+
+          if (!ticker) {
+            return new Response(JSON.stringify({
+              error: 'Invalid request: ticker is required'
+            }), { status: 400, headers: corsHeaders });
+          }
+
+          const result = await subscriptions.unsubscribeFromTicker(authResult.apiKey, ticker);
+          return new Response(JSON.stringify(result), { headers: corsHeaders });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            error: 'Failed to unsubscribe',
+            message: error.message
+          }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // Bulk subscription management
+      if (url.pathname === '/subscriptions/bulk' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const { action, tickers, priority = 1 } = body;
+
+          if (!action || !tickers || !Array.isArray(tickers)) {
+            return new Response(JSON.stringify({
+              error: 'Invalid request: action and tickers array are required'
+            }), { status: 400, headers: corsHeaders });
+          }
+
+          let results;
+          if (action === 'subscribe') {
+            results = await subscriptions.bulkSubscribe(authResult.apiKey, tickers, priority);
+          } else if (action === 'unsubscribe') {
+            results = await subscriptions.bulkUnsubscribe(authResult.apiKey, tickers);
+          } else {
+            return new Response(JSON.stringify({
+              error: 'Invalid action: must be "subscribe" or "unsubscribe"'
+            }), { status: 400, headers: corsHeaders });
+          }
+
+          const successful = results.filter(r => r.success).length;
+          const failed = results.filter(r => !r.success).length;
+
+          return new Response(JSON.stringify({
+            success: true,
+            action,
+            results,
+            summary: { successful, failed, total: tickers.length }
+          }), { headers: corsHeaders });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            error: 'Failed to process bulk operation',
+            message: error.message
+          }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // Get dividends for user's subscriptions only
+      if (url.pathname === '/my-dividends' && request.method === 'GET') {
+        try {
+          const startDate = url.searchParams.get('startDate');
+          const endDate = url.searchParams.get('endDate');
+          const limit = url.searchParams.get('limit');
+          const offset = url.searchParams.get('offset');
+          const format = url.searchParams.get('format');
+
+          const dividends = await subscriptions.getUserDividends(authResult.apiKey, startDate, endDate, limit, offset);
+          
+          // Handle CSV format
+          if (format === 'csv') {
+            const csvHeader = 'Ticker,Declaration Date,Record Date,Ex-Dividend Date,Pay Date,Amount,Currency,Frequency,Type,Priority';
+            const csvRows = dividends.map(d => 
+              `${d.ticker},${d.declaration_date || ''},${d.record_date || ''},${d.ex_dividend_date},${d.pay_date || ''},${d.amount},${d.currency},${d.frequency},${d.type},${d.priority}`
+            );
+            const csvContent = [csvHeader, ...csvRows].join('\n');
+            
+            return new Response(csvContent, {
+              headers: {
+                ...corsHeaders,
+                'Content-Type': 'text/csv',
+                'Content-Disposition': 'attachment; filename="my_dividends.csv"'
+              }
+            });
+          }
+
+          return new Response(JSON.stringify({
+            success: true,
+            dividends: dividends.map(d => ({
+              ticker: d.ticker,
+              declarationDate: d.declaration_date,
+              recordDate: d.record_date,
+              exDividendDate: d.ex_dividend_date,
+              payDate: d.pay_date,
+              amount: d.amount,
+              currency: d.currency,
+              frequency: d.frequency,
+              type: d.type,
+              priority: d.priority,
+              subscribedAt: d.subscribed_at
+            })),
+            totalRecords: dividends.length,
+            dataSource: 'user_subscriptions',
+            stage: 'Stage 4 - CF-Native with Subscriptions'
+          }), { headers: corsHeaders });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            error: 'Failed to get user dividends',
+            message: error.message
+          }), { status: 500, headers: corsHeaders });
+        }
+      }
+
       // Default response
       return new Response(JSON.stringify({
         service: 'ticker-backend-cf-native',
-        stage: 'Stage 4 - Full CF-Native System',
-        message: 'All complexity eliminated - single CF worker handles everything',
+        stage: 'Stage 4 - Full CF-Native System with Subscriptions',
+        message: 'All complexity eliminated - single CF worker handles everything with user subscriptions',
         endpoints: [
           'GET /health',
           'GET /dividends/all',
           'GET /dividends/{ticker}',
+          'GET /my-dividends - Get dividends for user subscriptions only',
+          'GET /subscriptions - Get user subscriptions',
+          'POST /subscriptions - Subscribe to ticker',
+          'DELETE /subscriptions - Unsubscribe from ticker',
+          'POST /subscriptions/bulk - Bulk subscribe/unsubscribe',
           'POST /update-tickers',
           'POST /process'
         ]
