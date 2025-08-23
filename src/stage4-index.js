@@ -630,6 +630,7 @@ export default {
           complexity: 'eliminated',
           authentication: 'enabled',
           subscriptions: 'enabled',
+          version: '1.0.1',
           environment: {
             hasSupabaseUrl: !!env.SUPABASE_URL,
             hasSupabaseKey: !!env.SUPABASE_ANON_KEY,
